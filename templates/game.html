@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynamic Board Game</title>
+    <script>
+        let currentPlayer = 1; // Отображение текущего игрока
+
+        async function startGame() {
+            const boardSize = parseInt(document.getElementById("boardSize").value);
+            const firstPlayer = parseInt(document.getElementById("firstPlayer").value);
+            const player2IsBot = document.getElementById("player2IsBot").checked;  // Проверяем, является ли второй игрок ботом
+
+            const response = await fetch('/start', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    board_size: boardSize,
+                    first_player: firstPlayer,
+                    player2_is_bot: player2IsBot  // Отправляем информацию о боте
+                })
+            });
+
+            const data = await response.json();
+            if (response.ok) {
+                alert(data.message);
+                renderBoard(data.board);
+                currentPlayer = firstPlayer;
+                document.getElementById("currentPlayer").textContent = `Current Player: Player ${currentPlayer}`;
+                if (player2IsBot && currentPlayer === 2) {
+                    makeMove();  // Если второй игрок - бот, сразу делаем его ход
+                }
+            } else {
+                alert(data.message);
+            }
+        }
+
+        function renderBoard(board) {
+            const boardContainer = document.getElementById("board");
+            boardContainer.innerHTML = ""; // Очистка старой доски
+
+            board.forEach(row => {
+                const rowElement = document.createElement("div");
+                rowElement.style.display = "flex";
+
+                row.forEach(cell => {
+                    const cellElement = document.createElement("div");
+                    cellElement.textContent = cell;
+                    cellElement.style.border = "1px solid black";
+                    cellElement.style.padding = "10px";
+                    cellElement.style.textAlign = "center";
+                    cellElement.style.width = "30px";
+                    cellElement.style.height = "30px";
+                    rowElement.appendChild(cellElement);
+                });
+
+                boardContainer.appendChild(rowElement);
+            });
+        }
+
+        async function makeMove() {
+            const moveInput = document.getElementById("moveInput").value;
+
+            const response = await fetch('/move', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ move: moveInput })
+            });
+
+            const data = await response.json();
+            if (response.ok) {
+                if (data.message) {
+                    alert(data.message);
+                }
+
+                if (data.board) {
+                    renderBoard(data.board);
+                }
+
+                if (data.current_player) {
+                    currentPlayer = data.current_player;
+                    document.getElementById("currentPlayer").textContent = `Current Player: Player ${currentPlayer}`;
+                    if (data.current_player === 2 && document.getElementById("player2IsBot").checked) {
+                        makeMove();  // Если второй игрок - бот, сразу делаем его ход
+                    }
+                }
+            } else {
+                alert(data.message || "Invalid move. Try again.");
+            }
+
+            document.getElementById("moveInput").value = ""; // Очистка поля ввода
+        }
+    </script>
+</head>
+<body>
+    <h1>Dynamic Board Game</h1>
+    <label for="boardSize">Select Board Size (3-10):</label>
+    <input type="number" id="boardSize" value="4" min="3" max="10">
+    <br><br>
+    <label for="firstPlayer">Select First Player (1 or 2):</label>
+    <select id="firstPlayer">
+        <option value="1">Player 1</option>
+        <option value="2">Player 2</option>
+    </select>
+    <br><br>
+    <label for="player2IsBot">Is Player 2 a Bot?</label>
+    <input type="checkbox" id="player2IsBot">
+    <br><br>
+    <button onclick="startGame()">Start Game</button>
+
+    <h2>Game Board:</h2>
+    <div id="board" style="margin-top: 20px;"></div>
+
+    <h3 id="currentPlayer">Current Player: </h3>
+    <label for="moveInput">Enter Your Move:</label>
+    <input type="text" id="moveInput" placeholder="e.g., 1A">
+    <button onclick="makeMove()">Submit Move</button>
+</body>
+</html>
